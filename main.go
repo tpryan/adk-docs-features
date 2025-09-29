@@ -87,11 +87,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, cand := range resp.Candidates {
+	for i, cand := range resp.Candidates {
 		if cand.Content != nil {
 			for _, part := range cand.Content.Parts {
 				if txt, ok := part.(genai.Text); ok {
-					fmt.Println(txt)
+					filename := fmt.Sprintf("output_%d.md", i+1)
+					err := os.WriteFile(filename, []byte(txt), 0644)
+					if err != nil {
+						log.Fatal(err)
+					}
+					fmt.Printf("Wrote output to %s\n", filename)
 				}
 			}
 		}
