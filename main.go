@@ -16,7 +16,8 @@ import (
 	"google.golang.org/api/option"
 )
 
-func downloadAndExtractTextFiles(url string) (string, error) {
+func downloadAndExtractTextFiles(user, repo string) (string, error) {
+	url := fmt.Sprintf("https://github.com/%s/%s/archive/refs/heads/main.zip", user, repo)
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", err
@@ -74,7 +75,7 @@ func main() {
 	}
 	command := string(promptBytes)
 
-	documentationContent, err := downloadAndExtractTextFiles("https://github.com/google/adk-docs/archive/refs/heads/main.zip")
+	documentationContent, err := downloadAndExtractTextFiles("google", "adk-docs")
 	if err != nil {
 		log.Fatal(err)
 	}
