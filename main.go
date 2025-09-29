@@ -6,9 +6,55 @@ import (
 	"log"
 	"os"
 
+	"archive/zip"
+	"bytes"
+	"io"
+	"net/http"
+	"strings"
+
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
 )
+
+func downloadAndExtractTextFiles(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		return "", err
+	}
+
+	var content strings.Builder
+
+	for _, f := range zipReader.File {
+		if (strings.HasSuffix(f.Name, ".md")) && strings.Contains(f.Name, "/docs/") {
+			rc, err := f.Open()
+			if err != nil {
+				return "", err
+			}
+			defer rc.Close()
+
+			fileContent, err := io.ReadAll(rc)
+			if err != nil {
+				return "", err
+			}
+
+			content.Write(fileContent)
+			content.WriteString("\n\n")
+		}
+	}
+
+	return content.String(), nil
+}
 
 func main() {
 	ctx := context.Background()
@@ -20,23 +66,18 @@ func main() {
 	defer client.Close()
 
 	// For text-only input, use the gemini-pro model
-	model := client.GenerativeModel("gemini-1.5-flash")
+	model := client.GenerativeModel("gemini-2.5-flash")
 
-	command := `
-Analyze the documentation for the adk project and please come up with a list of features that adk delivers. Focus on page titles and section headers to come up with that list.
+	promptBytes, err := os.ReadFile("prompt.md")
+	if err != nil {
+		log.Fatal(err)
+	}
+	command := string(promptBytes)
 
-Once that is done, I'd like to generate a matrix of features enabled by runtime.
-
-Currently there are two runtimes python which is the primary, and java. But soon go and typescript will be added, but typescript will be known as adk-js.
-
-A good metric for figuring out if a feature is supported per runtime is if the sample code associated with a given feature in adk-docs includes samples in a given language.
-
-Ideally the output format would be markdown
-`
-
-	// In a real script, you would load the content of your documentation files here.
-	// For this example, we'll use a placeholder.
-	documentationContent := "PASTE_ALL_YOUR_DOCUMENTATION_CONTENT_HERE"
+	documentationContent, err := downloadAndExtractTextFiles("https://github.com/google/adk-docs/archive/refs/heads/main.zip")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	prompt := command + "\n\n" + documentationContent
 
