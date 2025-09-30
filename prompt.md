@@ -22,4 +22,4 @@ Always preface the content with ********** so that I can programmatically remove
 
 Pattern for building urls from markdown paths should be to replaced the .md extension with a "/". 
 
-Use the following markdown as an example of a good previous run of this content:
+Use the following markdown as an example of a good previous run of this content and should really only be updated if content in adk-docs has changed:
