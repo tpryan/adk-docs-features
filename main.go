@@ -16,7 +16,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-func downloadAndExtractTextFiles(user, repo string) (string, error) {
+func extractRepo(user, repo string) (string, error) {
 	url := fmt.Sprintf("https://github.com/%s/%s/archive/refs/heads/main.zip", user, repo)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -67,15 +67,24 @@ func main() {
 	defer client.Close()
 
 	// For text-only input, use the gemini-pro model
-	model := client.GenerativeModel("gemini-2.5-flash")
+	model := client.GenerativeModel("gemini-2.5-pro")
+	model.SetTemperature(0.9)
+	model.SetTopP(0.95)
+	model.SetTopK(40)
 
 	promptBytes, err := os.ReadFile("prompt.md")
 	if err != nil {
 		log.Fatal(err)
 	}
-	command := string(promptBytes)
 
-	documentationContent, err := downloadAndExtractTextFiles("google", "adk-docs")
+	outputBytes, err := os.ReadFile("example.md")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	command := string(promptBytes) + string(outputBytes)
+
+	documentationContent, err := extractRepo("google", "adk-docs")
 	if err != nil {
 		log.Fatal(err)
 	}
