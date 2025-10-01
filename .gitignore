@@ -1,2 +1,3 @@
 output_*.md
 .github/workflows/run.yml
+docs/features/index.md

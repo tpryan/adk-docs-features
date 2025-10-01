@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	"archive/zip"
@@ -14,6 +13,8 @@ import (
 
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
+
+	"github.com/charmbracelet/log"
 )
 
 func extractRepo(user, repo string) (string, error) {
@@ -72,40 +73,50 @@ func main() {
 	model.SetTopP(0.95)
 	model.SetTopK(40)
 
+	log.Infof("reading prompt")
 	promptBytes, err := os.ReadFile("prompt.md")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("cannot read prompt from filesystem: %s", err)
 	}
 
+	log.Infof("reading example")
 	outputBytes, err := os.ReadFile("example.md")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("cannot read example from filesystem: %s", err)
 	}
 
 	command := string(promptBytes) + string(outputBytes)
 
+	log.Infof("Retrieving adk-docs")
 	documentationContent, err := extractRepo("google", "adk-docs")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("cannot retrieve and process content from adk-docs repo: %s", err)
 	}
 
 	prompt := command + "\n\n" + documentationContent
 
+	log.Infof("sending the request to the model")
 	resp, err := model.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("did not get a valid response back from teh model", err)
 	}
 
 	for i, cand := range resp.Candidates {
 		if cand.Content != nil {
 			for _, part := range cand.Content.Parts {
 				if txt, ok := part.(genai.Text); ok {
-					filename := fmt.Sprintf("output_%d.md", i+1)
-					err := os.WriteFile(filename, []byte(txt), 0644)
-					if err != nil {
-						log.Fatal(err)
+					if i == 0 { // Only process the first candidate for the PR
+						outputDir := "docs/features"
+						if err := os.MkdirAll(outputDir, 0755); err != nil {
+							log.Fatalf("failed to create output directory: %v", err)
+						}
+						filename := fmt.Sprintf("%s/index.md", outputDir)
+						err := os.WriteFile(filename, []byte(txt), 0644)
+						if err != nil {
+							log.Fatalf("failed to write output file: %v", err)
+						}
+						log.Infof("wrote output to %s", filename)
 					}
-					fmt.Printf("Wrote output to %s\n", filename)
 				}
 			}
 		}
